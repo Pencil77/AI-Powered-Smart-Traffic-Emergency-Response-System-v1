@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic Signal Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .upload-card {
+            transition: transform 0.2s ease-in-out;
+        }
+        .upload-card:hover {
+            transform: translateY(-4px);
+        }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="ml-2 text-xl font-bold text-gray-800">Smart Traffic Signal Management</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Upload Section -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Traffic Analysis Configuration</h2>
+
+            <form method="post" enctype="multipart/form-data" id="uploadForm">
+                <!-- Lane Selection -->
+                <div class="mb-6">
+                    <label for="lane_count" class="block text-sm font-medium text-gray-700 mb-2">
+                        Number of Traffic Lanes
+                    </label>
+                    <select id="lane_count" name="lane_count"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            onchange="updateLaneInputs()">
+                        <option value="">Select number of lanes</option>
+                        <option value="1">1 Lane</option>
+                        <option value="2">2 Lanes</option>
+                        <option value="3">3 Lanes</option>
+                        <option value="4">4 Lanes</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic Lane Inputs -->
+                <div id="lane-inputs" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Lane inputs will be dynamically inserted here -->
+                </div>
+
+                <!-- Submit Button -->
+                <div class="mt-8 flex justify-center">
+                    <button type="submit"
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Analyze Traffic
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Error Messages -->
+        {% if error %}
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-red-700">{{ error }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <!-- Results Section -->
+        {% if show_results %}
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                </svg>
+                Traffic Analysis Results
+            </h2>
+
+            <!-- Results Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                {% for detect in detection_outputs %}
+                <div class="bg-gray-50 rounded-xl p-6 shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                        </svg>
+                        Lane {{ detect.lane }}
+                    </h3>
+
+                    {% if detect.file_type == 'image' %}
+                    <div class="space-y-6">
+                        <!-- Original Image -->
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Original Image</h4>
+                            <div class="relative rounded-lg overflow-hidden">
+                                <img src="{{ url_for('static', filename='uploads/' + detect.original_file) }}"
+                                     class="w-full h-auto" alt="Original Image">
+                            </div>
+                        </div>
+
+                        <!-- Detection Result -->
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Detection Result</h4>
+                            <div class="relative rounded-lg overflow-hidden">
+                                <img src="{{ url_for('static', filename='detections/' + detect.detection_file) }}"
+                                     class="w-full h-auto" alt="Detection Result">
+                            </div>
+                        </div>
+
+                        <!-- Vehicle Count Summary -->
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-blue-800 mb-3">Vehicle Distribution</h4>
+                            <div class="flex flex-wrap gap-2">
+                                {% for vehicle_type, count in detect.vehicle_types.items() %}
+                                    {% if count > 0 %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                        {% if vehicle_type == 'car' %}
+                                            bg-blue-100 text-blue-800
+                                        {% elif vehicle_type == 'truck' %}
+                                            bg-green-100 text-green-800
+                                        {% elif vehicle_type == 'bus' %}
+                                            bg-purple-100 text-purple-800
+                                        {% elif vehicle_type == 'motorbike' %}
+                                            bg-orange-100 text-orange-800
+                                        {% elif vehicle_type == 'bicycle' %}
+                                            bg-pink-100 text-pink-800
+                                        {% endif %}">
+                                        <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        {{ vehicle_type|title }}: {{ count }}
+                                    </span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% elif detect.file_type == 'video' %}
+                    <div class="space-y-6">
+                        <!-- Original Video -->
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Original Video</h4>
+                            <div class="relative rounded-lg overflow-hidden">
+                                <video controls class="w-full">
+                                    <source src="{{ url_for('static', filename='uploads/' + detect.original_file) }}"
+                                            type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </div>
+
+                        <!-- Processed Video -->
+                        <div class="bg-white p-4 rounded-lg shadow-sm">
+                            <h4 class="text-sm font-medium text-gray-700 mb-3">Processed Video</h4>
+                            <div class="relative rounded-lg overflow-hidden">
+                                <video controls class="w-full">
+                                    <source src="{{ url_for('static', filename='detections/' + detect.detection_file) }}"
+                                            type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                        </div>
+
+                        <!-- Vehicle Count Summary -->
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-blue-800 mb-3">Average Vehicle Count</h4>
+                            <p class="text-2xl font-bold text-blue-900">{{ detect.vehicle_count }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Traffic Analysis Summary -->
+            <div class="bg-white rounded-xl shadow-md p-6 mt-8">
+                <h3 class="text-xl font-semibold mb-6 text-gray-800 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    Signal Timing Analysis
+                </h3>
+                <!-- Traffic Analysis Table -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Lane
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Vehicle Distribution
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Total Count
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Green Time
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for lane in lane_info %}
+                            <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">Lane {{ lane.lane_number }}</div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex flex-wrap gap-2">
+                                        {% for vehicle_type, count in lane.vehicle_types.items() %}
+                                            {% if count > 0 %}
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                                {% if vehicle_type == 'car' %}
+                                                    bg-blue-100 text-blue-800
+                                                {% elif vehicle_type == 'truck' %}
+                                                    bg-green-100 text-green-800
+                                                {% elif vehicle_type == 'bus' %}
+                                                    bg-purple-100 text-purple-800
+                                                {% elif vehicle_type == 'motorbike' %}
+                                                    bg-orange-100 text-orange-800
+                                                {% elif vehicle_type == 'bicycle' %}
+                                                    bg-pink-100 text-pink-800
+                                                {% endif %}">
+                                                {{ vehicle_type|title }}: {{ count }}
+                                            </span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="text-sm font-medium text-gray-900">{{ lane.vehicle_count }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="relative w-48 h-4 bg-gray-200 rounded-full overflow-hidden">
+                                            <div class="absolute top-0 left-0 h-full bg-green-500 transition-all duration-500"
+                                                 style="width: {{ (lane.green_time/60)*100 }}%"></div>
+                                        </div>
+                                        <span class="ml-3 text-sm font-medium text-gray-900">{{ "%.2f"|format(lane.green_time) }}s</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Summary Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+                    <!-- Total Vehicles Card -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Total Vehicles</p>
+                                <p class="text-lg font-semibold text-gray-900">{{ total_vehicles }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cycle Time Card -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-green-100 text-green-600">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Cycle Time</p>
+                                <p class="text-lg font-semibold text-gray-900">60s</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function updateLaneInputs() {
+            const laneCount = document.getElementById('lane_count').value;
+            const laneInputsContainer = document.getElementById('lane-inputs');
+            laneInputsContainer.innerHTML = '';
+
+            for (let i = 1; i <= laneCount; i++) {
+                const laneInput = `
+                    <div class="upload-card bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                        <h3 class="text-lg font-semibold mb-4 text-gray-800">Lane ${i}</h3>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all duration-200">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                    </svg>
+                                    <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                    <p class="text-xs text-gray-500">Images (JPG, PNG) or Videos (MP4, AVI)</p>
+                                </div>
+                                <input type="file" name="files" class="hidden" accept=".jpg,.jpeg,.png,.mp4,.avi" required>
+                            </label>
+                        </div>
+                        <div class="preview mt-4 hidden">
+                            <img src="" alt="Preview" class="max-w-full h-auto rounded-lg">
+                        </div>
+                    </div>
+                `;
+                laneInputsContainer.insertAdjacentHTML('beforeend', laneInput);
+            }
+
+            // Add preview functionality
+            document.querySelectorAll('input[type="file"]').forEach(input => {
+                input.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const preview = this.closest('.upload-card').querySelector('.preview');
+                        const previewImg = preview.querySelector('img');
+
+                        if (file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                previewImg.src = e.target.result;
+                                preview.classList.remove('hidden');
+                            }
+                            reader.readAsDataURL(file);
+                        } else if (file.type.startsWith('video/')) {
+                            previewImg.src = '/static/images/video-thumbnail.png'; // Add a default video thumbnail
+                            preview.classList.remove('hidden');
+                        }
+                    }
+                });
+            });
+        }
+    </script>
+</body>
+</html>
