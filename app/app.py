@@ -40,6 +40,22 @@ VEHICLE_CLASSES = {
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Add cleanup function
+def cleanup_old_files():
+    """Clean up files older than 1 hour"""
+    current_time = datetime.now()
+    for folder in [UPLOAD_FOLDER, DETECTION_FOLDER]:
+        for filename in os.listdir(folder):
+            if filename == '.gitkeep':
+                continue
+            filepath = os.path.join(folder, filename)
+            try:
+                file_time = datetime.fromtimestamp(os.path.getctime(filepath))
+                if (current_time - file_time).total_seconds() > 3600:  # 1 hour
+                    os.remove(filepath)
+            except Exception as e:
+                logger.error(f"Error cleaning up file {filepath}: {e}")
+
 def count_vehicles_by_type(results):
     """Count vehicles by type from detection results"""
     try:
@@ -141,9 +157,15 @@ def process_video(video_path):
         logger.error(f"Error processing video {video_path}: {e}")
         return None, None, 0
 
+# Add health check endpoint
+@app.route("/health")
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     """Main route handler"""
+    cleanup_old_files()  # Add cleanup at start of route
     if request.method == "POST":
         try:
             # Get form data
@@ -265,4 +287,5 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

@@ -1,1 +1,9 @@
+__pycache__/
+*.pyc
+app/static/uploads/*
+app/static/detections/*
+!app/static/uploads/.gitkeep
+!app/static/detections/.gitkeep
+venv/
+.env
 dataset
