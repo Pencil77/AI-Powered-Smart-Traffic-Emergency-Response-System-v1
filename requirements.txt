@@ -1,0 +1,6 @@
+Flask>=2.3.3
+ultralytics>=8.0.141
+opencv-python>=4.7.0.72
+torch
+pillow>=9.5.0
+numpy

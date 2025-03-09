@@ -1,18 +1,32 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import os
 import cv2
 from ultralytics import YOLO
+import numpy as np
+from datetime import datetime
+import logging
 
 app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Configure upload folder
 UPLOAD_FOLDER = 'static/uploads'
 DETECTION_FOLDER = 'static/detections'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(DETECTION_FOLDER, exist_ok=True)
+ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'mp4', 'avi'}
+
+# Create directories if they don't exist
+for directory in [UPLOAD_FOLDER, DETECTION_FOLDER]:
+    os.makedirs(directory, exist_ok=True)
 
 # Initialize YOLO model
-model = YOLO('yolov9c.pt')
+try:
+    model = YOLO('yolov9c.pt')
+except Exception as e:
+    logger.error(f"Error loading YOLO model: {e}")
+    model = None
 
 # Define vehicle classes
 VEHICLE_CLASSES = {
@@ -23,161 +37,232 @@ VEHICLE_CLASSES = {
     "bicycle": 1   # Class index for bicycle
 }
 
-def count_vehicles_by_type(results):
-    vehicle_counts = {vehicle_type: 0 for vehicle_type in VEHICLE_CLASSES.keys()}
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-    for box in results[0].boxes.data:
-        class_id = int(box[5])
-        for vehicle_type, idx in VEHICLE_CLASSES.items():
-            if class_id == idx:
-                vehicle_counts[vehicle_type] += 1
+def count_vehicles_by_type(results):
+    """Count vehicles by type from detection results"""
+    try:
+        vehicle_counts = {vehicle_type: 0 for vehicle_type in VEHICLE_CLASSES.keys()}
+
+        for box in results[0].boxes.data:
+            class_id = int(box[5])
+            for vehicle_type, idx in VEHICLE_CLASSES.items():
+                if class_id == idx:
+                    vehicle_counts[vehicle_type] += 1
+                    break
+
+        return vehicle_counts
+    except Exception as e:
+        logger.error(f"Error counting vehicles: {e}")
+        return {vehicle_type: 0 for vehicle_type in VEHICLE_CLASSES.keys()}
+
+def process_image(image_path):
+    """Process a single image and return detection results"""
+    try:
+        img = cv2.imread(image_path)
+        if img is None:
+            raise ValueError("Could not read image")
+
+        results = model(img)
+        vehicle_counts = count_vehicles_by_type(results)
+
+        # Draw detections
+        img_with_vehicles = img.copy()
+        for box in results[0].boxes.data:
+            class_id = int(box[5])
+            if class_id in VEHICLE_CLASSES.values():
+                x1, y1, x2, y2 = map(int, box[:4])
+                class_name = results[0].names[class_id]
+                cv2.rectangle(img_with_vehicles, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(img_with_vehicles, class_name, (x1, y1-10),
+                          cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+        return img_with_vehicles, vehicle_counts, sum(vehicle_counts.values())
+    except Exception as e:
+        logger.error(f"Error processing image {image_path}: {e}")
+        return None, None, 0
+
+def process_video(video_path):
+    """Process a video and return detection results"""
+    try:
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            raise ValueError("Could not open video file")
+
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        output_path = video_path.replace(UPLOAD_FOLDER, DETECTION_FOLDER).replace('.mp4', '_output.mp4')
+        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+
+        frame_count = 0
+        total_vehicle_counts = {vehicle_type: 0 for vehicle_type in VEHICLE_CLASSES.keys()}
+
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
                 break
 
-    return vehicle_counts
+            results = model(frame)
+            frame_vehicle_counts = count_vehicles_by_type(results)
+
+            for vehicle_type, count in frame_vehicle_counts.items():
+                total_vehicle_counts[vehicle_type] += count
+
+            # Draw detections
+            frame_with_vehicles = frame.copy()
+            for box in results[0].boxes.data:
+                class_id = int(box[5])
+                if class_id in VEHICLE_CLASSES.values():
+                    x1, y1, x2, y2 = map(int, box[:4])
+                    class_name = results[0].names[class_id]
+                    cv2.rectangle(frame_with_vehicles, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(frame_with_vehicles, class_name, (x1, y1-10),
+                              cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+            out.write(frame_with_vehicles)
+            frame_count += 1
+
+        cap.release()
+        out.release()
+
+        # Calculate averages
+        average_vehicle_counts = {
+            vehicle_type: count // frame_count if frame_count > 0 else 0
+            for vehicle_type, count in total_vehicle_counts.items()
+        }
+        total_average_vehicles = sum(average_vehicle_counts.values())
+
+        return output_path, average_vehicle_counts, total_average_vehicles
+    except Exception as e:
+        logger.error(f"Error processing video {video_path}: {e}")
+        return None, None, 0
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    """Main route handler"""
     if request.method == "POST":
-        lane_count = request.form.get('lane_count', type=int)
-        if not lane_count:
-            return render_template('index.html', error="Please enter the number of lanes.")
+        try:
+            # Get form data
+            lane_count = request.form.get('lane_count', type=int)
+            cycle_time = request.form.get('cycle_time', type=int, default=60)
 
-        lane_vehicle_counts = [0] * lane_count
-        lane_vehicle_types = [{}] * lane_count
+            # Validate inputs
+            if not lane_count:
+                return render_template('index.html', error="Please select the number of lanes.")
+            if not 30 <= cycle_time <= 180:
+                return render_template('index.html', error="Cycle time must be between 30 and 180 seconds.")
 
-        if 'files' not in request.files:
-            return render_template('index.html', error="No files were selected for upload.")
+            # Initialize arrays
+            lane_vehicle_counts = [0] * lane_count
+            lane_vehicle_types = [{}] * lane_count
+            detection_outputs = []
 
-        files = request.files.getlist('files')
-        if len(files) != lane_count:
-            return render_template('index.html', error=f"Please upload exactly {lane_count} files (one per lane).")
+            # Process files
+            files = request.files.getlist('files')
+            if len(files) != lane_count:
+                return render_template('index.html',
+                                     error=f"Please upload exactly {lane_count} files (one per lane).")
 
-        detection_outputs = []
+            for i, file in enumerate(files):
+                if not file or not file.filename:
+                    return render_template('index.html',
+                                         error=f"Missing file for lane {i+1}")
 
-        for i, file in enumerate(files):
-            if file and file.filename != '':
-                filepath = os.path.join(UPLOAD_FOLDER, f"lane_{i+1}_{file.filename}")
+                if not allowed_file(file.filename):
+                    return render_template('index.html',
+                                         error=f"Invalid file format for lane {i+1}. Use jpg, png, or mp4 only.")
+
+                # Save file
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"lane_{i+1}_{timestamp}_{file.filename}"
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
                 file.save(filepath)
 
+                # Process file based on type
                 file_extension = file.filename.rsplit('.', 1)[1].lower()
 
                 if file_extension in ['jpg', 'jpeg', 'png']:
-                    img = cv2.imread(filepath)
-                    results = model(img)
+                    # Process image
+                    img_with_vehicles, vehicle_counts, total_vehicles = process_image(filepath)
+                    if img_with_vehicles is None:
+                        return render_template('index.html',
+                                             error=f"Error processing image for lane {i+1}")
 
-                    # Count vehicles by type
-                    vehicle_counts = count_vehicles_by_type(results)
-                    lane_vehicle_types[i] = vehicle_counts
-                    total_vehicles = sum(vehicle_counts.values())
-
-                    # Filter and draw detections
-                    img_with_vehicles = img.copy()
-                    for box in results[0].boxes.data:
-                        class_id = int(box[5])
-                        if class_id in VEHICLE_CLASSES.values():
-                            x1, y1, x2, y2 = map(int, box[:4])
-                            class_name = results[0].names[class_id]
-                            cv2.rectangle(img_with_vehicles, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                            cv2.putText(img_with_vehicles, class_name, (x1, y1-10),
-                                      cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-
-                    detection_path = os.path.join(DETECTION_FOLDER, f"lane_{i+1}_{file.filename}")
+                    detection_path = os.path.join(DETECTION_FOLDER, filename)
                     cv2.imwrite(detection_path, img_with_vehicles)
 
                     lane_vehicle_counts[i] = total_vehicles
+                    lane_vehicle_types[i] = vehicle_counts
 
                     detection_outputs.append({
                         'lane': i+1,
                         'file_type': 'image',
-                        'original_file': f"lane_{i+1}_{file.filename}",
-                        'detection_file': f"lane_{i+1}_{file.filename}",
+                        'original_file': filename,
+                        'detection_file': filename,
                         'vehicle_count': total_vehicles,
                         'vehicle_types': vehicle_counts
                     })
 
-                elif file_extension in ['mp4', 'avi']:
-                    video_path = filepath
-                    output_path = os.path.join(DETECTION_FOLDER, f"lane_{i+1}_output.mp4")
+                else:  # video file
+                    # Process video
+                    output_path, vehicle_counts, total_vehicles = process_video(filepath)
+                    if output_path is None:
+                        return render_template('index.html',
+                                             error=f"Error processing video for lane {i+1}")
 
-                    cap = cv2.VideoCapture(video_path)
-                    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    out = cv2.VideoWriter(output_path, fourcc, 30.0, (frame_width, frame_height))
-
-                    frame_count = 0
-                    total_vehicle_counts = {vehicle_type: 0 for vehicle_type in VEHICLE_CLASSES.keys()}
-
-                    while cap.isOpened():
-                        ret, frame = cap.read()
-                        if not ret:
-                            break
-
-                        results = model(frame)
-                        frame_vehicle_counts = count_vehicles_by_type(results)
-
-                        for vehicle_type, count in frame_vehicle_counts.items():
-                            total_vehicle_counts[vehicle_type] += count
-
-                        # Draw detections
-                        frame_with_vehicles = frame.copy()
-                        for box in results[0].boxes.data:
-                            class_id = int(box[5])
-                            if class_id in VEHICLE_CLASSES.values():
-                                x1, y1, x2, y2 = map(int, box[:4])
-                                class_name = results[0].names[class_id]
-                                cv2.rectangle(frame_with_vehicles, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                                cv2.putText(frame_with_vehicles, class_name, (x1, y1-10),
-                                          cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-
-                        out.write(frame_with_vehicles)
-                        frame_count += 1
-
-                    cap.release()
-                    out.release()
-
-                    # Calculate averages
-                    average_vehicle_counts = {
-                        vehicle_type: count // frame_count if frame_count > 0 else 0
-                        for vehicle_type, count in total_vehicle_counts.items()
-                    }
-                    total_average_vehicles = sum(average_vehicle_counts.values())
-
-                    lane_vehicle_counts[i] = total_average_vehicles
-                    lane_vehicle_types[i] = average_vehicle_counts
+                    lane_vehicle_counts[i] = total_vehicles
+                    lane_vehicle_types[i] = vehicle_counts
 
                     detection_outputs.append({
                         'lane': i+1,
                         'file_type': 'video',
-                        'original_file': f"lane_{i+1}_{file.filename}",
-                        'detection_file': f"lane_{i+1}_output.mp4",
-                        'vehicle_count': total_average_vehicles,
-                        'vehicle_types': average_vehicle_counts
+                        'original_file': filename,
+                        'detection_file': os.path.basename(output_path),
+                        'vehicle_count': total_vehicles,
+                        'vehicle_types': vehicle_counts
                     })
 
-                else:
-                    return render_template('index.html', error="Unsupported file format. Use .jpg, .png, or .mp4 only.")
+            # Calculate total vehicles and green times
+            total_vehicles = sum(lane_vehicle_counts)
+            if total_vehicles == 0:
+                green_times = [cycle_time / lane_count] * lane_count
             else:
-                return render_template('index.html', error="One of the files has no filename.")
+                green_times = [round((count / total_vehicles) * cycle_time, 2)
+                             for count in lane_vehicle_counts]
 
-        total_vehicles = sum(lane_vehicle_counts)
-        green_times = [round((count / total_vehicles) * 60.0, 2) if total_vehicles else round(60.0 / lane_count, 2) for count in lane_vehicle_counts]
+            # Prepare lane info
+            lane_info = [{
+                'lane_number': i+1,
+                'vehicle_count': lane_vehicle_counts[i],
+                'green_time': green_times[i],
+                'vehicle_types': lane_vehicle_types[i]
+            } for i in range(lane_count)]
 
-        lane_info = [{
-            'lane_number': i+1,
-            'vehicle_count': lane_vehicle_counts[i],
-            'green_time': green_times[i],
-            'vehicle_types': lane_vehicle_types[i]
-        } for i in range(lane_count)]
+            return render_template('index.html',
+                                 detection_outputs=detection_outputs,
+                                 lane_info=lane_info,
+                                 total_vehicles=total_vehicles,
+                                 cycle_time=cycle_time,
+                                 show_results=True)
 
-        return render_template('index.html',
-                             detection_outputs=detection_outputs,
-                             lane_info=lane_info,
-                             total_vehicles=total_vehicles,
-                             show_results=True)
+        except Exception as e:
+            logger.error(f"Error processing request: {e}")
+            return render_template('index.html',
+                                 error="An error occurred while processing your request. Please try again.")
 
     return render_template('index.html')
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return render_template('500.html'), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
