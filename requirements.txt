@@ -4,3 +4,4 @@ opencv-python>=4.7.0.72
 torch
 pillow>=9.5.0
 numpy
+gunicorn>=20.1.0
