@@ -1,7 +1,7 @@
 ## INTRODUCTION
 This project develops an AI-based dynamic traffic signal system using object detection to optimize traffic flow. It analyzes real-time traffic data and adjusts signal timings based on vehicle density. It also describes the accompanying Flask-based web application that demonstrates how to use the trained model for lane-wise vehicle detection and green-time calculation.
 ### Deployment Link
-You can try the live demo of the system at the following URL:  
+You can try the live demo of the system at the following URL:  (Takes a lot of time for processing as it is deployed in free instance in AWS, Refer to Youtube Video below. Will update to a better instance later)
 [AI-Powered Smart Traffic Management System](http://ec2-18-226-222-74.us-east-2.compute.amazonaws.com:5000/)
 
 ### YouTube Video Demo
