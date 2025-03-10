@@ -1,5 +1,86 @@
 ## INTRODUCTION
 This project develops an AI-based dynamic traffic signal system using object detection to optimize traffic flow. It analyzes real-time traffic data and adjusts signal timings based on vehicle density. It also describes the accompanying Flask-based web application that demonstrates how to use the trained model for lane-wise vehicle detection and green-time calculation.
+### Deployment Link
+You can try the live demo of the system at the following URL:  
+[AI-Powered Smart Traffic Management System](http://ec2-18-226-222-74.us-east-2.compute.amazonaws.com:5000/)
+
+### YouTube Video Demo
+Check out the demonstration of the project on YouTube:  
+[YouTube Demo Video](https://www.youtube.com/watch?v=gQNsI5qtbt4)
+
+---
+
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Web Application Overview](#web-application-overview)
+3. [Vehicle Class Mapping](#vehicle-class-mapping)
+4. [Screenshots](#screenshots)
+5. [How to Use This Repository](#how-to-use-this-repository)
+6. [Dataset & Model](#dataset--model)
+7. [Training Process](#training-process)
+8. [Training Logs & Results](#training-logs--results)
+9. [Training Metrics & Plots](#training-metrics--plots)
+10. [Future Scope](#future-scope)
+11. [References](#references)
+
+---
+## WEB APPLICATION OVERVIEW
+We developed a Flask-based web application to demonstrate real-time lane-wise vehicle counting and dynamic green-time calculation using the trained model.
+
+### Key Features
+- **Multiple Lane Input:** Users can specify how many lanes they want to analyze.
+- **Automatic Detection:** The YOLOv9 model (`best.pt`) is loaded onto the Flask server.
+- **Image & Video Support:** Each lane can have an uploaded image or video file.
+- **Vehicle Counting:** Counts the number of recognized vehicles by type.
+- **Dynamic Signal Timing:** Calculates a proportional green-time for each lane based on total vehicle count.
+
+### Workflow Summary
+1. The user enters the number of lanes.
+2. For each lane, the user uploads an image or video.
+3. The application runs inference with the YOLOv9 model.
+4. Detections are drawn, and total vehicle counts are aggregated.
+5. A dynamic green-time (in seconds) is computed for each lane.
+6. Results are displayed with detection outputs and recommended signal times.
+
+---
+
+## VEHICLE CLASS MAPPING
+
+| Vehicle Type | Class Index |
+|-------------|------------|
+| Car         | 2          |
+| Truck       | 7          |
+| Bus         | 5          |
+| Motorbike   | 3          |
+| Bicycle     | 1          |
+
+---
+
+## SCREENSHOTS
+
+<img src="https://github.com/user-attachments/assets/c87e1133-2dfc-4445-9565-6df8ca71e35e" width="400">
+
+---
+
+## HOW TO USE THIS REPOSITORY
+
+1. Clone the repository and navigate to the project directory:
+   ```sh
+   git clone ai-powered-smart-traffic-management-system
+   cd ai-powered-smart-traffic-management-system/app
+   ```
+2. Ensure you have a Python 3.x environment set up.
+3. Install required dependencies:
+   ```sh
+   pip install -r requirements.txt
+   ```
+4. Place your trained YOLO weights (`best.pt`) in the designated location.
+5. Launch the Flask app:
+   ```sh
+   python app.py
+   ```
+6. Open your web browser and go to the indicated localhost address.
+7. Select the number of lanes, upload images/videos for each lane, and click **“Analyze Traffic.”**
 
 ---
 
@@ -92,60 +173,6 @@ This project develops an AI-based dynamic traffic signal system using object det
 
 ---
 
-## WEB APPLICATION OVERVIEW
-
-We developed a Flask-based web application to demonstrate real-time lane-wise vehicle counting and dynamic green-time calculation using the trained model.
-
-### Key Features
-- **Multiple Lane Input:** Users can specify how many lanes they want to analyze.
-- **Automatic Detection:** The YOLOv9 model (`best.pt`) is loaded onto the Flask server.
-- **Image & Video Support:** Each lane can have an uploaded image or video file.
-- **Vehicle Counting:** Counts the number of recognized vehicles by type.
-- **Dynamic Signal Timing:** Calculates a proportional green-time for each lane based on total vehicle count.
-
-### Workflow Summary
-1. The user enters the number of lanes.
-2. For each lane, the user uploads an image or video.
-3. The application runs inference with the YOLOv9 model.
-4. Detections are drawn, and total vehicle counts are aggregated.
-5. A dynamic green-time (in seconds) is computed for each lane.
-6. Results are displayed with detection outputs and recommended signal times.
-
----
-
-## VEHICLE CLASS MAPPING
-
-| Vehicle Type | Class Index |
-|-------------|------------|
-| Car         | 2          |
-| Truck       | 7          |
-| Bus         | 5          |
-| Motorbike   | 3          |
-| Bicycle     | 1          |
-
----
-
-## HOW TO USE THIS REPOSITORY
-
-1. Clone the repository and navigate to the project directory:
-   ```sh
-   git clone ai-powered-smart-traffic-management-system
-   cd ai-powered-smart-traffic-management-system
-   ```
-2. Ensure you have a Python 3.x environment set up.
-3. Install required dependencies:
-   ```sh
-   pip install -r requirements.txt
-   ```
-4. Place your trained YOLO weights (`best.pt`) in the designated location.
-5. Launch the Flask app:
-   ```sh
-   python app.py
-   ```
-6. Open your web browser and go to the indicated localhost address.
-7. Select the number of lanes, upload images/videos for each lane, and click **“Analyze Traffic.”**
-
----
 
 ## FUTURE SCOPE
 - **Priority-Based Traffic Control:** Automatically detect and prioritize ambulances, police vehicles, etc.
