@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic Signal Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .upload-card {
+            transition: transform 0.2s ease-in-out;
+        }
+        .upload-card:hover {
+            transform: translateY(-4px);
+        }
+        .progress-bar {
+            transition: width 0.5s ease-in-out;
+        }
+        .traffic-light {
+            width: 80px;
+            height: 200px;
+            background: #333;
+            border-radius: 10px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .light {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-bottom: 10px;
+            background: #000;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .red { background: #ff0000; opacity: 0.3; }
+        .yellow { background: #ffff00; opacity: 0.3; }
+        .green { background: #00ff00; opacity: 0.3; }
+        .active { opacity: 1; box-shadow: 0 0 20px rgba(255, 255, 255, 0.5); }
+
+        .timer-display {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-top: 0.5rem;
+        }
+
+        .control-button {
+            transition: all 0.3s ease;
+        }
+        .control-button:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="ml-2 text-xl font-bold text-gray-800">Smart Traffic Signal Management</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Upload Section -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Traffic Analysis Configuration</h2>
+
+            <form method="post" enctype="multipart/form-data" id="uploadForm">
+                <!-- Lane Selection -->
+                <div class="mb-6">
+                    <label for="lane_count" class="block text-sm font-medium text-gray-700 mb-2">
+                        Number of Traffic Lanes
+                    </label>
+                    <select id="lane_count" name="lane_count"
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            onchange="updateLaneInputs()">
+                        <option value="">Select number of lanes</option>
+                        <option value="1">1 Lane</option>
+                        <option value="2">2 Lanes</option>
+                        <option value="3">3 Lanes</option>
+                        <option value="4">4 Lanes</option>
+                    </select>
+                </div>
+
+                <!-- Cycle Time Selection -->
+                <div class="mb-6">
+                    <label for="cycle_time" class="block text-sm font-medium text-gray-700 mb-2">
+                        Cycle Time (seconds)
+                    </label>
+                    <input type="number" id="cycle_time" name="cycle_time" min="30" max="180" value="60"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <p class="mt-1 text-sm text-gray-500">Enter cycle time between 30-180 seconds</p>
+                </div>
+
+                <!-- Dynamic Lane Inputs -->
+                <div id="lane-inputs" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Lane inputs will be dynamically inserted here -->
+                </div>
+
+                <!-- Submit Button -->
+                <div class="mt-8 flex justify-center">
+                    <button type="submit"
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Analyze Traffic
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Error Messages -->
+        {% if error %}
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-8">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-red-700">{{ error }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Loading State -->
+        <div id="loadingState" class="hidden">
+            <div class="flex items-center justify-center p-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span class="ml-3 text-lg text-gray-700">Processing...</span>
+            </div>
+        </div>
+
+        <!-- Form Validation Messages -->
+        <div id="validationMessages" class="hidden mt-4">
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700" id="validationMessage"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+		<!-- Results Section -->
+{% if show_results %}
+<div data-results
+     data-lane-info='{{ lane_info|tojson|safe }}'
+     data-cycle-time='{{ request.form.get("cycle_time", 60)|int }}'
+     class="bg-white rounded-xl shadow-lg p-6">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+        <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        Traffic Analysis Results
+    </h2>
+
+    <!-- Traffic Light Visualization Section -->
+    <div class="mb-8 traffic-light-visualization">
+        <h4 class="text-lg font-semibold mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Real-time Signal Status
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% for lane in lane_info %}
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-300 hover:shadow-md">
+                <h5 class="text-sm font-medium mb-3">Lane {{ lane.lane_number }}</h5>
+                <div class="flex items-center space-x-4">
+                    <div class="traffic-light" id="traffic-light-{{ lane.lane_number }}">
+                        <div class="light red" id="red-{{ lane.lane_number }}"></div>
+                        <div class="light yellow" id="yellow-{{ lane.lane_number }}"></div>
+                        <div class="light green" id="green-{{ lane.lane_number }}"></div>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="text-sm font-semibold mb-1">Timer</div>
+                        <div class="timer-display" id="timer-{{ lane.lane_number }}">00:00</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- Simulation Controls will be inserted here by JavaScript -->
+    </div>
+	<!-- Detection Results Display -->
+<div class="mb-8">
+    <h4 class="text-lg font-semibold mb-4 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        Detection Results
+    </h4>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {% for output in detection_outputs %}
+        <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <h5 class="text-sm font-medium mb-3">Lane {{ output.lane }}</h5>
+            {% if output.file_type == 'image' %}
+            <img src="{{ url_for('static', filename='detections/' + output.detection_file) }}"
+                 alt="Detection Result"
+                 class="w-full h-auto rounded-lg">
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+    <!-- Traffic Analysis Summary -->
+    <div class="bg-white rounded-xl shadow-md p-6 mt-8">
+        <h3 class="text-xl font-semibold mb-6 text-gray-800 flex items-center">
+            <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            Signal Timing Analysis
+        </h3>
+
+        <!-- Analysis Table -->
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lane</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle Distribution</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Count</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Green Time</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for lane in lane_info %}
+                    <tr class="hover:bg-gray-50 transition-colors duration-200">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">Lane {{ lane.lane_number }}</div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-wrap gap-2">
+                                {% for vehicle_type, count in lane.vehicle_types.items() %}
+                                    {% if count > 0 %}
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                                        {% if vehicle_type == 'car' %}
+                                            bg-blue-100 text-blue-800
+                                        {% elif vehicle_type == 'truck' %}
+                                            bg-green-100 text-green-800
+                                        {% elif vehicle_type == 'bus' %}
+                                            bg-purple-100 text-purple-800
+                                        {% elif vehicle_type == 'motorbike' %}
+                                            bg-orange-100 text-orange-800
+                                        {% elif vehicle_type == 'bicycle' %}
+                                            bg-pink-100 text-pink-800
+                                        {% endif %}">
+                                        {{ vehicle_type|title }}: {{ count }}
+                                    </span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ lane.vehicle_count }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="relative w-48 h-4 bg-gray-200 rounded-full overflow-hidden">
+                                    <div class="absolute top-0 left-0 h-full bg-green-500 transition-all duration-500"
+                                         style="width: {{ (lane.green_time/cycle_time)*100 }}%"></div>
+                                </div>
+                                <span class="ml-3 text-sm font-medium text-gray-900">{{ "%.2f"|format(lane.green_time) }}s</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+            <!-- Total Vehicles Card -->
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-all duration-300">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Total Vehicles</p>
+                        <p class="text-lg font-semibold text-gray-900">{{ total_vehicles }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cycle Time Card -->
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 hover:shadow-md transition-all duration-300">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm font-medium text-gray-500">Cycle Time</p>
+                        <p class="text-lg font-semibold text-gray-900">{{ cycle_time }}s</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+</div>
+<script>
+    // File Upload and Preview Functionality
+    function updateLaneInputs() {
+        const laneCount = document.getElementById('lane_count').value;
+        const laneInputsContainer = document.getElementById('lane-inputs');
+        laneInputsContainer.innerHTML = '';
+
+        for (let i = 1; i <= laneCount; i++) {
+            const laneInput = `
+                <div class="upload-card bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                    <h3 class="text-lg font-semibold mb-4 text-gray-800">Lane ${i}</h3>
+                    <div class="flex items-center justify-center w-full">
+                        <label class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all duration-200">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                <p class="text-xs text-gray-500">Images (JPG, PNG) or Videos (MP4, AVI)</p>
+                            </div>
+                            <input type="file" name="files" class="hidden" accept=".jpg,.jpeg,.png,.mp4,.avi" required>
+                        </label>
+                    </div>
+                    <div class="preview mt-4 hidden">
+                        <img src="" alt="Preview" class="max-w-full h-auto rounded-lg">
+                    </div>
+                </div>
+            `;
+            laneInputsContainer.insertAdjacentHTML('beforeend', laneInput);
+        }
+
+        // Add preview functionality
+        setupFilePreview();
+    }
+
+    // Enhanced File Preview Setup
+    function setupFilePreview() {
+        document.querySelectorAll('input[type="file"]').forEach(input => {
+            const dropZone = input.closest('label');
+
+            // Drag and drop functionality
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                dropZone.classList.add('bg-blue-50', 'border-blue-300');
+            }
+
+            function unhighlight(e) {
+                dropZone.classList.remove('bg-blue-50', 'border-blue-300');
+            }
+
+            // Handle both drop and change events
+            dropZone.addEventListener('drop', handleDrop, false);
+            input.addEventListener('change', handleChange, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+
+            function handleChange(e) {
+                const files = this.files;
+                handleFiles(files);
+            }
+
+            function handleFiles(files) {
+                if (files.length > 0) {
+                    const file = files[0];
+                    const preview = input.closest('.upload-card').querySelector('.preview');
+                    const previewImg = preview.querySelector('img');
+
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            previewImg.src = e.target.result;
+                            preview.classList.remove('hidden');
+                        }
+                        reader.readAsDataURL(file);
+                    } else if (file.type.startsWith('video/')) {
+                        previewImg.src = '/static/images/video-thumbnail.png';
+                        preview.classList.remove('hidden');
+                    }
+                }
+            }
+        });
+    }
+
+    // Traffic Light Simulation
+    class TrafficLightSimulation {
+        constructor(laneInfo, cycleTime) {
+            this.laneInfo = laneInfo;
+            this.cycleTime = cycleTime;
+            this.currentLane = 0;
+            this.totalLanes = laneInfo.length;
+            this.isSimulationRunning = true;
+            this.timerId = null;
+            this.setupControls();
+        }
+
+        setupControls() {
+            const controlsContainer = document.createElement('div');
+            controlsContainer.className = 'flex justify-center space-x-4 mt-6';
+            controlsContainer.innerHTML = `
+                <button id="stopSimulation" class="control-button px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                        Stop Simulation
+                    </span>
+                </button>
+                <button id="restartSimulation" class="control-button px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+                    <span class="flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Restart Simulation
+                    </span>
+                </button>
+            `;
+            document.querySelector('.traffic-light-visualization').appendChild(controlsContainer);
+
+            document.getElementById('stopSimulation').addEventListener('click', () => this.stopSimulation());
+            document.getElementById('restartSimulation').addEventListener('click', () => this.restartSimulation());
+        }
+
+        updateTrafficLights() {
+            if (!this.isSimulationRunning) return;
+
+            // Reset all lights
+            for(let i = 0; i < this.totalLanes; i++) {
+                const redLight = document.getElementById(`red-${i+1}`);
+                const yellowLight = document.getElementById(`yellow-${i+1}`);
+                const greenLight = document.getElementById(`green-${i+1}`);
+                const timer = document.getElementById(`timer-${i+1}`);
+
+                redLight.classList.remove('active');
+                yellowLight.classList.remove('active');
+                greenLight.classList.remove('active');
+                timer.textContent = "00:00";
+
+                if(i !== this.currentLane) {
+                    redLight.classList.add('active');
+                }
+            }
+
+            // Set green for current lane
+            document.getElementById(`green-${this.currentLane+1}`).classList.add('active');
+
+            // Start timer
+            // Update the timer display section in the updateTrafficLights method
+let timeLeft = this.laneInfo[this.currentLane].green_time;
+this.timerId = setInterval(() => {
+    if (!this.isSimulationRunning) {
+        clearInterval(this.timerId);
+        return;
+    }
+
+    if(timeLeft >= 0) {
+        const minutes = Math.floor(timeLeft/60);
+        const seconds = Math.floor(timeLeft % 60);
+        const decimal = Math.floor((timeLeft % 1) * 100);
+        document.getElementById(`timer-${this.currentLane+1}`).textContent =
+            `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${decimal.toString().padStart(2, '0')}`;
+    }
+    timeLeft -= 0.1; // Update every 100ms for smoother countdown
+}, 100);
+
+            // Schedule next lane
+            setTimeout(() => {
+                if (!this.isSimulationRunning) {
+                    clearInterval(this.timerId);
+                    return;
+                }
+
+                // Yellow light transition
+                document.getElementById(`green-${this.currentLane+1}`).classList.remove('active');
+                document.getElementById(`yellow-${this.currentLane+1}`).classList.add('active');
+
+                setTimeout(() => {
+                    if (!this.isSimulationRunning) {
+                        clearInterval(this.timerId);
+                        return;
+                    }
+
+                    clearInterval(this.timerId);
+                    this.currentLane = (this.currentLane + 1) % this.totalLanes;
+                    this.updateTrafficLights();
+                }, 2000); // Yellow light duration
+
+            }, this.laneInfo[this.currentLane].green_time * 1000);
+        }
+
+        stopSimulation() {
+            this.isSimulationRunning = false;
+            clearInterval(this.timerId);
+
+            // Reset all lights to red
+            for(let i = 0; i < this.totalLanes; i++) {
+                document.getElementById(`red-${i+1}`).classList.add('active');
+                document.getElementById(`yellow-${i+1}`).classList.remove('active');
+                document.getElementById(`green-${i+1}`).classList.remove('active');
+                document.getElementById(`timer-${i+1}`).textContent = "00:00";
+            }
+        }
+
+        restartSimulation() {
+            if (!this.isSimulationRunning) {
+                this.isSimulationRunning = true;
+                this.currentLane = 0;
+                this.updateTrafficLights();
+            }
+        }
+
+        start() {
+            this.updateTrafficLights();
+        }
+    }
+
+    // Form Validation
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        const laneCount = document.getElementById('lane_count').value;
+        const cycleTime = document.getElementById('cycle_time').value;
+        const files = document.querySelectorAll('input[type="file"]');
+
+        let isValid = true;
+        let errorMessage = '';
+
+        if (!laneCount) {
+            isValid = false;
+            errorMessage = 'Please select the number of lanes.';
+        } else if (!cycleTime || cycleTime < 30 || cycleTime > 180) {
+            isValid = false;
+            errorMessage = 'Please enter a valid cycle time between 30 and 180 seconds.';
+        } else if ([...files].some(file => !file.files.length)) {
+            isValid = false;
+            errorMessage = 'Please upload files for all lanes.';
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+            const validationMessage = document.getElementById('validationMessage');
+            validationMessage.textContent = errorMessage;
+            document.getElementById('validationMessages').classList.remove('hidden');
+        } else {
+            document.getElementById('loadingState').classList.remove('hidden');
+        }
+    });
+
+    // Initialize Traffic Light Simulation
+    document.addEventListener('DOMContentLoaded', function() {
+        const resultsContainer = document.querySelector('[data-results]');
+        if (resultsContainer) {
+            const laneInfo = JSON.parse(resultsContainer.getAttribute('data-lane-info'));
+            const cycleTime = parseInt(resultsContainer.getAttribute('data-cycle-time'));
+            const simulation = new TrafficLightSimulation(laneInfo, cycleTime);
+            simulation.start();
+        }
+    });
+</script>
+</body>
+</html>
