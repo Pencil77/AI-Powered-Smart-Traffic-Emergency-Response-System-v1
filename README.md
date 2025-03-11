@@ -1,8 +1,8 @@
 ## INTRODUCTION
-This project develops an AI-based dynamic traffic signal system using object detection to optimize traffic flow. It analyzes real-time traffic data and adjusts signal timings based on vehicle density. It also describes the accompanying Flask-based web application that demonstrates how to use the trained model for lane-wise vehicle detection and green-time calculation.
+This project develops an AI-based dynamic traffic signal system using object detection to optimize traffic flow. It analyzes real-time traffic data and adjusts signal timings based on vehicle density. It also describes the accompanying Streamlit-based web application that demonstrates how to use the trained model for lane-wise vehicle detection and green-time calculation.
 ### Deployment Link
 You can try the live demo of the system at the following URL:  (Takes a lot of time for processing as it is deployed in free instance in AWS, Refer to Youtube Video below. Will update to a better instance later)
-[AI-Powered Smart Traffic Management System](http://ec2-18-226-222-74.us-east-2.compute.amazonaws.com:5000/)
+[AI-Powered Smart Traffic Management System](http://ec2-3-144-35-94.us-east-2.compute.amazonaws.com:8501/)
 
 ### YouTube Video Demo
 Check out the demonstration of the project on YouTube:  
@@ -25,11 +25,11 @@ Check out the demonstration of the project on YouTube:
 
 ---
 ## WEB APPLICATION OVERVIEW
-We developed a Flask-based web application to demonstrate real-time lane-wise vehicle counting and dynamic green-time calculation using the trained model.
+We developed a Streamlit-based web application to demonstrate real-time lane-wise vehicle counting and dynamic green-time calculation using the trained model.
 
 ### Key Features
 - **Multiple Lane Input:** Users can specify how many lanes they want to analyze.
-- **Automatic Detection:** The YOLOv9 model (`best.pt`) is loaded onto the Flask server.
+- **Automatic Detection:** The YOLOv9 model (`best.pt`) is loaded onto the Streamlit server.
 - **Image & Video Support:** Each lane can have an uploaded image or video file.
 - **Vehicle Counting:** Counts the number of recognized vehicles by type.
 - **Dynamic Signal Timing:** Calculates a proportional green-time for each lane based on total vehicle count.
@@ -75,7 +75,7 @@ We developed a Flask-based web application to demonstrate real-time lane-wise ve
    pip install -r requirements.txt
    ```
 4. Place your trained YOLO weights (`best.pt`) in the designated location.
-5. Launch the Flask app:
+5. Launch the Streamlit app:
    ```sh
    python app.py
    ```
