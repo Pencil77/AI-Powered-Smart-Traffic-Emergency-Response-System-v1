@@ -6,3 +6,4 @@ pillow>=9.5.0
 numpy
 gunicorn>=20.1.0
 streamlit
+flask_cors
